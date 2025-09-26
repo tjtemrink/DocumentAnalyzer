@@ -10,6 +10,7 @@ class AIDocumentAnalyzer {
         this.fieldPatterns = new Map();
         this.learningHistory = [];
         this.confidenceThreshold = 0.7;
+        this.documentDatabase = null;
         
         // Initialize with comprehensive document database
         this.initializeDocumentDatabase();
@@ -172,17 +173,47 @@ class AIDocumentAnalyzer {
      */
     async analyzeDocument(file, filename) {
         try {
+            // Initialize document database if available
+            if (window.DocumentDatabase && !this.documentDatabase) {
+                this.documentDatabase = new window.DocumentDatabase();
+                console.log('📚 Document database initialized');
+            }
+            
             // Extract text content (simulated - in real implementation, use OCR)
             const documentText = await this.extractTextFromFile(file);
             
-            // AI classification based on pattern matching
-            const classification = this.classifyDocument(documentText, filename);
+            let classification, completeness, validity;
             
-            // AI field completeness analysis
-            const completeness = this.analyzeFieldCompleteness(documentText, classification.documentType);
-            
-            // AI validity analysis
-            const validity = this.analyzeValidity(documentText, classification.documentType);
+            // Use document database for enhanced analysis if available
+            if (this.documentDatabase) {
+                const dbAnalysis = this.documentDatabase.analyzeDocument(documentText, filename);
+                if (dbAnalysis.length > 0) {
+                    const bestMatch = dbAnalysis[0];
+                    classification = {
+                        documentType: bestMatch.documentType,
+                        confidence: bestMatch.confidence,
+                        description: this.generateDescriptionFromDatabase(bestMatch.documentType)
+                    };
+                    
+                    // Extract fields using database patterns
+                    const extractedFields = this.extractFieldsWithDatabase(documentText, bestMatch.documentType);
+                    
+                    // Validate using database rules
+                    const validation = this.documentDatabase.validateDocument(bestMatch.documentType, extractedFields);
+                    completeness = this.analyzeCompletenessWithDatabase(extractedFields, bestMatch.documentType, validation);
+                    validity = this.analyzeValidityWithDatabase(extractedFields, bestMatch.documentType, validation);
+                } else {
+                    // Fallback to original analysis
+                    classification = this.classifyDocument(documentText, filename);
+                    completeness = this.analyzeFieldCompleteness(documentText, classification.documentType);
+                    validity = this.analyzeValidity(documentText, classification.documentType);
+                }
+            } else {
+                // Original analysis method
+                classification = this.classifyDocument(documentText, filename);
+                completeness = this.analyzeFieldCompleteness(documentText, classification.documentType);
+                validity = this.analyzeValidity(documentText, classification.documentType);
+            }
             
             // Learn from this analysis
             this.learnFromAnalysis(filename, classification, completeness, validity);
@@ -710,6 +741,110 @@ class AIDocumentAnalyzer {
             averageConfidence: this.learningHistory.reduce((sum, h) => sum + h.classification.confidence, 0) / this.learningHistory.length || 0,
             averageCompleteness: this.learningHistory.reduce((sum, h) => sum + h.completeness.completeness.score, 0) / this.learningHistory.length || 0
         };
+    }
+
+    /**
+     * Generate description from document database
+     */
+    generateDescriptionFromDatabase(documentType) {
+        if (this.documentDatabase) {
+            const docInfo = this.documentDatabase.getDocumentType(documentType);
+            if (docInfo) {
+                return docInfo.description || `This is a ${documentType} document.`;
+            }
+        }
+        return `This is a ${documentType} document.`;
+    }
+
+    /**
+     * Extract fields using document database patterns
+     */
+    extractFieldsWithDatabase(documentText, documentType) {
+        const fields = {};
+        
+        if (this.documentDatabase) {
+            const patterns = this.documentDatabase.getPatterns(documentType);
+            if (patterns) {
+                // Extract fields based on patterns
+                for (const [fieldName, pattern] of Object.entries(patterns)) {
+                    if (typeof pattern === 'string') {
+                        const regex = new RegExp(pattern, 'gi');
+                        const match = documentText.match(regex);
+                        if (match) {
+                            fields[fieldName] = match[0];
+                        }
+                    }
+                }
+            }
+        }
+        
+        return fields;
+    }
+
+    /**
+     * Analyze completeness using document database
+     */
+    analyzeCompletenessWithDatabase(extractedFields, documentType, validation) {
+        if (this.documentDatabase) {
+            const docInfo = this.documentDatabase.getDocumentType(documentType);
+            if (docInfo) {
+                const requiredFields = docInfo.requiredFields || [];
+                const presentFields = [];
+                const missingFields = [];
+                
+                for (const field of requiredFields) {
+                    if (extractedFields[field] && extractedFields[field].toString().trim() !== '') {
+                        presentFields.push(field);
+                    } else {
+                        missingFields.push(field);
+                    }
+                }
+                
+                const score = requiredFields.length > 0 ? (presentFields.length / requiredFields.length) * 100 : 100;
+                let status = 'Complete';
+                if (score < 70) status = 'Incomplete';
+                else if (score < 90) status = 'Partially Complete';
+                
+                return {
+                    completeness: {
+                        score: Math.round(score),
+                        status: status,
+                        presentRequired: presentFields,
+                        missingRequired: missingFields
+                    }
+                };
+            }
+        }
+        
+        // Fallback to original analysis
+        return this.analyzeFieldCompleteness(JSON.stringify(extractedFields), documentType);
+    }
+
+    /**
+     * Analyze validity using document database
+     */
+    analyzeValidityWithDatabase(extractedFields, documentType, validation) {
+        if (this.documentDatabase) {
+            const docInfo = this.documentDatabase.getDocumentType(documentType);
+            if (docInfo) {
+                const issues = validation.issues || [];
+                const warnings = validation.warnings || [];
+                
+                let status = 'Valid';
+                if (issues.length > 0) status = 'Invalid';
+                else if (warnings.length > 0) status = 'Potentially Valid (Review Warnings)';
+                
+                return {
+                    status: status,
+                    score: validation.score || 100,
+                    issues: issues,
+                    warnings: warnings
+                };
+            }
+        }
+        
+        // Fallback to original analysis
+        return this.analyzeValidity(JSON.stringify(extractedFields), documentType);
     }
 }
 
