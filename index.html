@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legal Knowledge Bank - Document Analysis</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+        .content {
+            padding: 40px;
+        }
+        .upload-section {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .upload-area {
+            border: 3px dashed #3498db;
+            border-radius: 12px;
+            padding: 60px 20px;
+            margin: 20px 0;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .upload-area:hover {
+            border-color: #2980b9;
+            background: #e3f2fd;
+        }
+        .upload-area.dragover {
+            border-color: #27ae60;
+            background: #e8f5e8;
+        }
+        .upload-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+        .upload-area h4 {
+            margin: 0;
+            color: #2c3e50;
+            font-size: 1.3em;
+        }
+        .upload-area p {
+            margin: 10px 0 0 0;
+            color: #7f8c8d;
+        }
+        .action-button {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+        .action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(52, 152, 219, 0.3);
+        }
+        .action-button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .results-section {
+            display: none;
+            margin-top: 30px;
+        }
+        .results-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 20px 0;
+        }
+        .qa-section {
+            display: none;
+            margin-top: 30px;
+        }
+        .qa-output {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            min-height: 100px;
+        }
+        .qa-input-area {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .qa-input-area textarea {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            resize: vertical;
+        }
+        .qa-input-area textarea:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        .disclaimer {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #856404;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #721c24;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #155724;
+        }
+        /* Enhanced analysis styles */
+        .ai-description {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            line-height: 1.5;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .completeness-score {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            border-left: 4px solid #007bff;
+        }
+
+        .score.excellent {
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .score.good {
+            color: #ffc107;
+            font-weight: bold;
+        }
+
+        .score.needs-work {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        .critical-issue {
+            color: #dc3545;
+            font-weight: bold;
+            background: #f8d7da;
+            padding: 5px;
+            border-radius: 4px;
+            margin: 5px 0;
+        }
+
+        .warning {
+            color: #856404;
+            background: #fff3cd;
+            padding: 5px;
+            border-radius: 4px;
+            margin: 5px 0;
+        }
+
+        .success {
+            color: #155724;
+            background: #d4edda;
+            padding: 5px;
+            border-radius: 4px;
+            margin: 5px 0;
+        }
+
+        .market-context {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border-left: 4px solid #2196f3;
+        }
+
+        .market-context h3 {
+            margin-top: 0;
+            color: #1976d2;
+        }
+
+        .market-context h4 {
+            color: #1976d2;
+            margin: 15px 0 10px 0;
+        }
+
+        /* Chat Learning Styles */
+        .qa-message {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #007bff;
+        }
+
+        .qa-question {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .qa-answer {
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        .qa-timestamp {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .qa-feedback {
+            display: flex;
+            gap: 10px;
+        }
+
+        .feedback-btn {
+            padding: 5px 12px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            background: white;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .feedback-btn:hover:not(:disabled) {
+            background: #f8f9fa;
+            border-color: #007bff;
+        }
+
+        .feedback-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .feedback-btn.helpful:hover:not(:disabled) {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+
+        .feedback-btn.not-helpful:hover:not(:disabled) {
+            background: #f8d7da;
+            border-color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏛️ Legal Knowledge Bank</h1>
+            <p>AI-Powered Document Analysis & Legal Q&A</p>
+        </div>
+        
+        <div class="content">
+            <!-- Upload Section -->
+            <div class="upload-section" id="uploadSection">
+                <h2>📄 Upload Your Legal Document</h2>
+                <p>Upload any legal document and get instant AI-powered analysis with legal insights.</p>
+                
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📄</div>
+                    <h4>Drop your PDF here or click to browse</h4>
+                    <p>Supports PDF documents up to 10MB</p>
+                    <input type="file" id="fileInput" accept=".pdf" style="display: none;">
+                </div>
+                
+                <button id="uploadButton" class="action-button" style="display: none;">Analyze Document</button>
+                
+                <div class="disclaimer">
+                    <strong>🔒 Privacy Notice:</strong> Your documents are processed securely and are not stored permanently. 
+                    Do not upload documents containing sensitive personal information unless necessary.
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div class="results-section" id="resultsSection">
+                <h2>✅ Document Analysis Results</h2>
+                <div class="results-card">
+                    <h3>Document Overview</h3>
+                    <p><strong>Document Type:</strong> <span id="documentType">N/A</span></p>
+                    <p><strong>Jurisdiction:</strong> <span id="jurisdiction">N/A</span></p>
+                    <p><strong>Status:</strong> <span id="status">N/A</span></p>
+                    <p><strong>Confidence:</strong> <span id="confidence">N/A</span></p>
+                    
+                    <h3>Key Information</h3>
+                    <div id="keyInfo">
+                        <p>No key information extracted.</p>
+                    </div>
+                    
+                    <h3>Issues / Missing Information</h3>
+                    <ul id="issuesList">
+                        <li>No issues found.</li>
+                    </ul>
+
+                    <h3>Relevant Legal References</h3>
+                    <ul id="referencesList">
+                        <li>No references found.</li>
+                    </ul>
+                    
+                    <div style="margin-top: 20px;">
+                        <button id="copyJsonButton" class="action-button">Copy Analysis (JSON)</button>
+                        <button id="rerunAnalysisButton" class="action-button">Upload New Document</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Q&A Section -->
+            <div class="qa-section" id="qaSection">
+                <h2>❓ Ask Questions About This Document</h2>
+                <div class="qa-output" id="qaOutput">
+                    <p>I've analyzed your document. What would you like to know about it?</p>
+                </div>
+                
+                <div class="qa-input-area">
+                    <textarea id="qaInput" placeholder="Ask anything about this document, legal requirements, next steps, or compliance issues..." rows="3"></textarea>
+                    <button id="qaSendButton" class="action-button">Send Question</button>
+                </div>
+                
+                <div class="disclaimer" id="qaDisclaimer" style="display: none;">
+                    <strong>⚖️ Legal Disclaimer:</strong> This information is for general guidance only and does not constitute legal advice. 
+                    For important legal decisions, consult with a qualified attorney.
+                </div>
+                
+                <!-- Learning Dashboard -->
+                <div id="learningDashboard" style="display: none; margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #007bff;">
+                    <h4 style="margin-top: 0; color: #007bff;">🤖 AI Learning Progress</h4>
+                    <div id="learningStats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-top: 10px;">
+                        <div class="stat-item">
+                            <div class="stat-value" id="totalInteractions">0</div>
+                            <div class="stat-label">Total Interactions</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="accuracy">0%</div>
+                            <div class="stat-label">Accuracy</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="knowledgeBase">0</div>
+                            <div class="stat-label">Knowledge Items</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="feedbackCount">0</div>
+                            <div class="stat-label">Feedback Received</div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                        <span class="learning-icon">🧠</span>
+                        <span>I'm continuously learning from your interactions to provide better responses!</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Self-Learning ML System -->
+    <script src="ai-document-analyzer.js"></script>
+    <script src="ai-training-system.js"></script>
+    <script src="training-dashboard.js"></script>
+    <script src="chat-learning-system.js"></script>
+    <script src="ml-learning-system.js"></script>
+    <script src="ml-plugins.js"></script>
+    <script src="feedback-system.js"></script>
+    
+    <script>
+        // Azure Functions URL
+        // Mock backend for immediate functionality
+        const MOCK_BACKEND = true;
+        const AZURE_FUNCTION_URL = 'https://fa-philer-docscan-d0aha6eneya7cngk.canadacentral-01.azurewebsites.net';
+        
+        // DOM elements
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const uploadButton = document.getElementById('uploadButton');
+        const uploadSection = document.getElementById('uploadSection');
+        const resultsSection = document.getElementById('resultsSection');
+        const qaSection = document.getElementById('qaSection');
+        const qaInput = document.getElementById('qaInput');
+        const qaSendButton = document.getElementById('qaSendButton');
+        const qaOutput = document.getElementById('qaOutput');
+        const qaDisclaimer = document.getElementById('qaDisclaimer');
+        
+        let currentDocumentData = null;
+
+        // Initialize AI learning system
+        let aiAnalyzer;
+        let trainingSystem;
+        let trainingDashboard;
+        let chatLearningSystem;
+        
+        if (window.AIDocumentAnalyzer) {
+            aiAnalyzer = new window.AIDocumentAnalyzer();
+            console.log('🤖 AI Document Analyzer initialized with comprehensive pattern database');
+        }
+        
+        // Initialize training system
+        if (window.AITrainingSystem && aiAnalyzer) {
+            trainingSystem = new window.AITrainingSystem(aiAnalyzer);
+            trainingSystem.initializeTrainingData();
+            console.log('🎓 AI Training System initialized with comprehensive document database');
+        }
+        
+        // Initialize training dashboard
+        if (window.TrainingDashboard && trainingSystem) {
+            trainingDashboard = new window.TrainingDashboard();
+            trainingDashboard.initialize(trainingSystem);
+            console.log('📊 Training Dashboard initialized');
+        }
+        
+        // Initialize chat learning system
+        if (window.ChatLearningSystem) {
+            chatLearningSystem = new window.ChatLearningSystem();
+            console.log('💬 Chat Learning System initialized - will learn from all conversations');
+        }
+
+        // Event listeners
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('dragleave', handleDragLeave);
+        uploadArea.addEventListener('drop', handleDrop);
+        fileInput.addEventListener('change', handleFileSelect);
+        uploadButton.addEventListener('click', handleUpload);
+        qaSendButton.addEventListener('click', handleQaSubmit);
+        qaInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleQaSubmit();
+            }
+        });
+
+        // Drag and drop handlers
+        function handleDragOver(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFileSelect();
+            }
+        }
+
+        function handleFileSelect() {
+            const file = fileInput.files[0];
+            if (file) {
+                uploadButton.style.display = 'inline-block';
+                uploadArea.innerHTML = `
+                    <div class="upload-icon">✅</div>
+                    <h4>Selected: ${file.name}</h4>
+                    <p>Ready to analyze</p>
+                `;
+            }
+        }
+
+        async function handleUpload() {
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('Please select a PDF document to upload.');
+                return;
+            }
+
+            uploadButton.disabled = true;
+            uploadButton.textContent = 'AI Analyzing...';
+            qaOutput.innerHTML = '<div class="loading">🤖 AI is analyzing your document using pattern database...</div>';
+
+            try {
+                let basicData;
+                
+                if (MOCK_BACKEND) {
+                    // Use AI Document Analyzer for intelligent analysis
+                    if (aiAnalyzer) {
+                        try {
+                            basicData = await aiAnalyzer.analyzeDocument(file, file.name);
+                            console.log('🤖 AI Analysis Complete:', basicData);
+                        } catch (error) {
+                            console.error('AI Analysis Error:', error);
+                            // Fallback to basic analysis
+                            basicData = {
+                                documentType: "Unknown Document",
+                                classificationConfidence: 0.5,
+                                description: "Unable to analyze document",
+                                fieldCompleteness: {
+                                    completeness: {
+                                        score: 0,
+                                        status: "Unknown",
+                                        missingRequired: [],
+                                        presentRequired: []
+                                    }
+                                },
+                                validityCheck: {
+                                    status: "Unknown",
+                                    score: 0,
+                                    issues: ["Unable to analyze document"],
+                                    warnings: []
+                                },
+                                jurisdiction: "Unknown",
+                                issueDate: "N/A",
+                                expiryDate: "N/A",
+                                validityStatus: "Unknown",
+                                reasons: ["AI analysis failed"],
+                                suggestedActions: ["Please try again or contact support"],
+                                correlationId: `error_${Date.now()}`,
+                                timestamp: new Date().toISOString()
+                            };
+                        }
+                    } else {
+                        throw new Error('AI Document Analyzer not available');
+                    }
+                } else {
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    // Step 1: Call Azure Function for basic document analysis
+                    const response = await fetch(`${AZURE_FUNCTION_URL}/api/ScanDoc`, {
+                        method: 'POST',
+                        body: formData,
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Analysis failed: ${response.status}`);
+                    }
+
+                    basicData = await response.json();
+                }
+                
+                // Use the AI analysis data
+                currentDocumentData = basicData;
+                
+                // Start a new conversation for this document
+                if (chatLearningSystem) {
+                    const conversationId = chatLearningSystem.startConversation('user_' + Date.now(), basicData);
+                    console.log(`💬 Started conversation ${conversationId} for document analysis`);
+                }
+                
+                // Display results
+                displayEnhancedResults(currentDocumentData);
+                showSection('results');
+                showSection('qa');
+                
+                uploadButton.textContent = 'AI Analysis Complete!';
+                uploadButton.style.background = 'linear-gradient(135deg, #27ae60 0%, #2ecc71 100%)';
+                
+                // Update learning dashboard
+                updateLearningDashboard();
+                
+            } catch (error) {
+                console.error('Upload error:', error);
+                qaOutput.innerHTML = `<div class="error">❌ AI Analysis failed: ${error.message}</div>`;
+                uploadButton.disabled = false;
+                uploadButton.textContent = 'Try Again';
+            }
+        }
+
+        function displayResults(data) {
+            document.getElementById('documentType').textContent = data.documentType || 'Unknown';
+            document.getElementById('jurisdiction').textContent = data.jurisdiction || 'Unknown';
+            document.getElementById('status').textContent = data.validityStatus || 'Unknown';
+            document.getElementById('confidence').textContent = data.classificationConfidence ? `${Math.round(data.classificationConfidence * 100)}%` : 'N/A';
+            
+            // Display key information
+            const keyInfo = document.getElementById('keyInfo');
+            keyInfo.innerHTML = `
+                <p><strong>Issue Date:</strong> ${data.issueDate || 'N/A'}</p>
+                <p><strong>Expiry Date:</strong> ${data.expiryDate || 'N/A'}</p>
+                <p><strong>Purchase Price:</strong> ${data.purchasePrice || 'N/A'}</p>
+                <p><strong>Closing Date:</strong> ${data.closingDate || 'N/A'}</p>
+            `;
+            
+            // Display issues
+            const issuesList = document.getElementById('issuesList');
+            if (data.reasons && data.reasons.length > 0) {
+                issuesList.innerHTML = data.reasons.map(reason => `<li>${reason}</li>`).join('');
+            } else {
+                issuesList.innerHTML = '<li>No issues found.</li>';
+            }
+            
+            // Display references
+            const referencesList = document.getElementById('referencesList');
+            referencesList.innerHTML = '<li>References will be loaded when you ask questions.</li>';
+        }
+
+        function displayEnhancedResults(data) {
+            // Use the AI analysis data directly
+            
+            // Basic info
+            document.getElementById('documentType').textContent = data.documentType || 'Unknown';
+            document.getElementById('jurisdiction').textContent = data.jurisdiction || 'Unknown';
+            document.getElementById('status').textContent = data.validityStatus || 'Unknown';
+            document.getElementById('confidence').textContent = data.classificationConfidence ? `${Math.round(data.classificationConfidence * 100)}%` : 'N/A';
+            
+            // Enhanced key information with AI description
+            const keyInfo = document.getElementById('keyInfo');
+            const completeness = data.fieldCompleteness?.completeness;
+            keyInfo.innerHTML = `
+                <div class="ai-description">
+                    <strong>🤖 AI Analysis:</strong> ${data.description || 'No description available'}
+                </div>
+                <div class="completeness-score">
+                    <strong>Document Completeness:</strong> 
+                    <span class="score ${completeness?.score >= 90 ? 'excellent' : completeness?.score >= 70 ? 'good' : 'needs-work'}">
+                        ${completeness?.score || 0}% (${completeness?.status || 'Unknown'})
+                    </span>
+                </div>
+                <p><strong>Issue Date:</strong> ${data.issueDate || 'N/A'}</p>
+                <p><strong>Expiry Date:</strong> ${data.expiryDate || 'N/A'}</p>
+                <p><strong>Document Type:</strong> ${data.documentType || 'N/A'}</p>
+                <p><strong>Validity Status:</strong> ${data.validityStatus || 'N/A'}</p>
+            `;
+            
+            // Enhanced issues with legal context
+            const issuesList = document.getElementById('issuesList');
+            const validity = data.validityCheck;
+            const issues = validity?.issues || [];
+            const warnings = validity?.warnings || [];
+            
+            let issuesHtml = '';
+            if (issues.length > 0) {
+                issuesHtml += '<h4>🚨 Critical Issues:</h4><ul>';
+                issues.forEach(issue => {
+                    issuesHtml += `<li class="critical-issue">${issue}</li>`;
+                });
+                issuesHtml += '</ul>';
+            }
+            
+            if (warnings.length > 0) {
+                issuesHtml += '<h4>⚠️ Warnings:</h4><ul>';
+                warnings.forEach(warning => {
+                    issuesHtml += `<li class="warning">${warning}</li>`;
+                });
+                issuesHtml += '</ul>';
+            }
+            
+            if (issues.length === 0 && warnings.length === 0) {
+                issuesHtml = '<li class="success">✅ No issues found - document appears complete!</li>';
+            }
+            
+            issuesList.innerHTML = issuesHtml;
+            
+            // Display reasons
+            const referencesList = document.getElementById('referencesList');
+            if (data.reasons && data.reasons.length > 0) {
+                referencesList.innerHTML = data.reasons.map(reason => `<li>${reason}</li>`).join('');
+            } else {
+                referencesList.innerHTML = '<li>Analysis completed successfully.</li>';
+            }
+        }
+
+        async function handleQaSubmit() {
+            const question = qaInput.value.trim();
+            if (!question) return;
+
+            qaInput.value = '';
+            qaSendButton.disabled = true;
+            qaOutput.innerHTML = '<div class="loading">🤔 Thinking about your question...</div>';
+
+            try {
+                // Record user question in learning system
+                let questionType = 'general';
+                const questionLower = question.toLowerCase();
+                if (questionLower.includes('valid') || questionLower.includes('validity')) questionType = 'validity';
+                else if (questionLower.includes('missing') || questionLower.includes('incomplete')) questionType = 'completeness';
+                else if (questionLower.includes('legal') || questionLower.includes('law')) questionType = 'legal';
+                else if (questionLower.includes('price') || questionLower.includes('cost')) questionType = 'financial';
+                
+                if (chatLearningSystem) {
+                    chatLearningSystem.recordUserMessage(question, questionType);
+                }
+
+                let data;
+                
+                if (MOCK_BACKEND) {
+                    // Use chat learning system to generate improved response
+                    let answer = '';
+                    
+                    if (chatLearningSystem) {
+                        const improvedResponse = chatLearningSystem.generateImprovedResponse(question, questionType);
+                        answer = improvedResponse;
+                    } else {
+                        // Fallback to basic responses
+                        answer = generateBasicMockResponse(question, currentDocumentData);
+                    }
+                    
+                    data = {
+                        answerMarkdown: answer,
+                        timestamp: new Date().toISOString(),
+                        documentType: currentDocumentData?.documentType,
+                        confidence: 0.8
+                    };
+                } else {
+                    const response = await fetch(`${AZURE_FUNCTION_URL}/api/qa`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            jurisdiction: currentDocumentData?.jurisdiction || 'Ontario',
+                            documentType: currentDocumentData?.documentType,
+                            extracted: currentDocumentData,
+                            validation: currentDocumentData,
+                            question: question,
+                        }),
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Q&A failed: ${response.status}`);
+                    }
+
+                    data = await response.json();
+                }
+
+                // Record AI response in learning system
+                if (chatLearningSystem) {
+                    chatLearningSystem.recordAIResponse(
+                        data.answerMarkdown, 
+                        data.confidence || 0.8, 
+                        'answer'
+                    );
+                }
+                
+                // Display the response with feedback buttons
+                const responseHtml = `
+                    <div class="qa-message">
+                        <div class="qa-question">
+                            <strong>You:</strong> ${question}
+                        </div>
+                        <div class="qa-answer">
+                            ${data.answerMarkdown || data.answer || 'No answer available.'}
+                        </div>
+                        <div class="qa-timestamp">
+                            ${new Date(data.timestamp).toLocaleString()}
+                        </div>
+                        <div class="qa-feedback">
+                            <button class="feedback-btn helpful" onclick="recordFeedback('helpful', this)">👍 Helpful</button>
+                            <button class="feedback-btn not-helpful" onclick="recordFeedback('not_helpful', this)">👎 Not Helpful</button>
+                        </div>
+                    </div>
+                `;
+                
+                qaOutput.innerHTML += responseHtml;
+                qaOutput.scrollTop = qaOutput.scrollHeight;
+                qaDisclaimer.style.display = 'block';
+                
+                // Show feedback system for self-learning
+                if (window.feedbackSystem) {
+                    setTimeout(() => {
+                        window.feedbackSystem.showFeedback(question, data.answerMarkdown || data.answer);
+                    }, 1000);
+                }
+
+            } catch (error) {
+                console.error('Q&A error:', error);
+                qaOutput.innerHTML = `<div class="error">❌ Failed to answer question: ${error.message}</div>`;
+            } finally {
+                qaSendButton.disabled = false;
+                qaInput.focus();
+            }
+        }
+
+        function showSection(sectionName) {
+            document.getElementById(sectionName + 'Section').style.display = 'block';
+        }
+
+        // Copy JSON functionality
+        document.getElementById('copyJsonButton').addEventListener('click', () => {
+            if (currentDocumentData) {
+                navigator.clipboard.writeText(JSON.stringify(currentDocumentData, null, 2));
+                alert('Analysis data copied to clipboard!');
+            }
+        });
+
+        // Generate basic mock response (fallback)
+        function generateBasicMockResponse(question, documentData) {
+            const questionLower = question.toLowerCase();
+            let answer = '';
+            
+            if (questionLower.includes('what') && (questionLower.includes('document') || questionLower.includes('for'))) {
+                answer = `This is a **${documentData?.documentType || 'Legal Document'}** - ${documentData?.description || 'a legal document used in real estate transactions'}. `;
+                answer += `This document outlines the key terms and conditions for the property transaction, including purchase price, closing date, and other important details that both parties must agree to. `;
+                answer += `It's essentially the foundation of any real estate deal and becomes legally binding once both parties sign it.`;
+            } else if (questionLower.includes('missing') || questionLower.includes('incomplete')) {
+                answer = `Looking at your document, I can see a few areas that need attention:\n\n`;
+                if (documentData?.fieldCompleteness && documentData.fieldCompleteness.completeness.missingRequired.length > 0) {
+                    answer += `**Missing Required Fields:**\n`;
+                    answer += `• ${documentData.fieldCompleteness.completeness.missingRequired.join('\n• ')}\n\n`;
+                }
+                if (documentData?.validityCheck && documentData.validityCheck.issues.length > 0) {
+                    answer += `**Issues to Address:**\n`;
+                    answer += `• ${documentData.validityCheck.issues.join('\n• ')}\n\n`;
+                }
+                answer += `These missing elements could affect the validity of your offer, so it's important to complete them before proceeding.`;
+            } else if (questionLower.includes('valid') || questionLower.includes('ready') || questionLower.includes('good')) {
+                answer = `Your document is **${documentData?.validityCheck?.status || 'Valid with Issues'}** (${documentData?.validityCheck?.score || 80}% validity score). `;
+                if (documentData?.validityCheck && documentData.validityCheck.issues.length === 0) {
+                    answer += `Everything looks good to go! The document appears complete and ready for use.`;
+                } else {
+                    answer += `However, there are some issues that should be addressed before finalizing:\n\n`;
+                    if (documentData?.validityCheck?.issues) {
+                        answer += `• ${documentData.validityCheck.issues.join('\n• ')}\n\n`;
+                    }
+                    answer += `Once these are resolved, your document should be ready for the next steps.`;
+                }
+            } else {
+                answer = `I can help you understand this ${documentData?.documentType || 'document'}. You can ask me about:\n\n`;
+                answer += `• What this document is for\n`;
+                answer += `• What information might be missing\n`;
+                answer += `• Whether the document is valid and ready\n`;
+                answer += `• The purchase price, closing date, or parties involved\n`;
+                answer += `• What steps to take next\n\n`;
+                answer += `What would you like to know?`;
+            }
+            
+            return answer;
+        }
+
+        // Record user feedback
+        function recordFeedback(feedback, button) {
+            if (chatLearningSystem) {
+                chatLearningSystem.recordUserFeedback(feedback);
+                
+                // Visual feedback
+                button.style.background = feedback === 'helpful' ? '#28a745' : '#dc3545';
+                button.style.color = 'white';
+                button.textContent = feedback === 'helpful' ? '✓ Thank you!' : '✓ Noted';
+                button.disabled = true;
+                
+                console.log(`👍 Recorded feedback: ${feedback}`);
+            }
+        }
+
+        // Update learning dashboard
+        function updateLearningDashboard() {
+            if (window.selfLearningSystem) {
+                const stats = window.selfLearningSystem.getLearningStats();
+                document.getElementById('totalInteractions').textContent = stats.totalInteractions;
+                document.getElementById('accuracy').textContent = Math.round(stats.accuracy * 100) + '%';
+                document.getElementById('knowledgeBase').textContent = stats.knowledgeBaseSize;
+                document.getElementById('feedbackCount').textContent = stats.positiveFeedback + stats.negativeFeedback;
+                
+                // Show dashboard if there's activity
+                if (stats.totalInteractions > 0) {
+                    document.getElementById('learningDashboard').style.display = 'block';
+                }
+            }
+        }
+
+        // Initialize learning dashboard
+        setTimeout(() => {
+            updateLearningDashboard();
+            // Update dashboard every 30 seconds
+            setInterval(updateLearningDashboard, 30000);
+        }, 1000);
+
+        // Rerun analysis
+        document.getElementById('rerunAnalysisButton').addEventListener('click', () => {
+            location.reload();
+        });
+    </script>
+</body>
+</html>
