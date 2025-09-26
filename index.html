@@ -413,6 +413,7 @@
     <script src="ai-training-system.js"></script>
     <script src="training-dashboard.js"></script>
     <script src="chat-learning-system.js"></script>
+    <script src="enhanced-chat-system.js"></script>
     <script src="ml-learning-system.js"></script>
     <script src="ml-plugins.js"></script>
     <script src="feedback-system.js"></script>
@@ -442,6 +443,7 @@
         let trainingSystem;
         let trainingDashboard;
         let chatLearningSystem;
+        let enhancedChatSystem;
         
         if (window.AIDocumentAnalyzer) {
             aiAnalyzer = new window.AIDocumentAnalyzer();
@@ -462,7 +464,13 @@
             console.log('📊 Training Dashboard initialized');
         }
         
-        // Initialize chat learning system
+        // Initialize enhanced chat system
+        if (window.EnhancedChatSystem) {
+            enhancedChatSystem = new window.EnhancedChatSystem();
+            console.log('💬 Enhanced Chat System initialized - provides contextual, document-aware conversations');
+        }
+        
+        // Initialize legacy chat learning system for compatibility
         if (window.ChatLearningSystem) {
             chatLearningSystem = new window.ChatLearningSystem();
             console.log('💬 Chat Learning System initialized - will learn from all conversations');
@@ -587,14 +595,45 @@
                     basicData = await response.json();
                 }
                 
-                // Use the AI analysis data
-                currentDocumentData = basicData;
-                
-                // Start a new conversation for this document
-                if (chatLearningSystem) {
-                    const conversationId = chatLearningSystem.startConversation('user_' + Date.now(), basicData);
-                    console.log(`💬 Started conversation ${conversationId} for document analysis`);
-                }
+               // Use the AI analysis data
+               currentDocumentData = basicData;
+               
+               // Initialize enhanced chat system with document data
+               if (enhancedChatSystem) {
+                   const chatInit = enhancedChatSystem.initializeWithDocument(basicData);
+                   console.log('💬 Enhanced chat initialized with document context');
+                   
+                   // Display contextual greeting
+                   qaOutput.innerHTML = `
+                       <div class="qa-message">
+                           <div class="qa-answer">
+                               ${chatInit.greeting}
+                           </div>
+                           <div class="qa-timestamp">
+                               ${new Date().toLocaleString()}
+                           </div>
+                       </div>
+                   `;
+                   
+                   // Display question suggestions
+                   if (chatInit.suggestions && chatInit.suggestions.length > 0) {
+                       const suggestionsHtml = `
+                           <div class="qa-message">
+                               <div class="qa-answer">
+                                   <strong>💡 Suggested questions:</strong><br>
+                                   ${chatInit.suggestions.map(s => `• ${s}`).join('<br>')}
+                               </div>
+                           </div>
+                       `;
+                       qaOutput.innerHTML += suggestionsHtml;
+                   }
+               }
+               
+               // Start a new conversation for this document (legacy)
+               if (chatLearningSystem) {
+                   const conversationId = chatLearningSystem.startConversation('user_' + Date.now(), basicData);
+                   console.log(`💬 Started conversation ${conversationId} for document analysis`);
+               }
                 
                 // Display results
                 displayEnhancedResults(currentDocumentData);
@@ -733,23 +772,27 @@
                 let data;
                 
                 if (MOCK_BACKEND) {
-                    // Use chat learning system to generate improved response
-                    let answer = '';
-                    
-                    if (chatLearningSystem) {
+                    // Use enhanced chat system for better responses
+                    if (enhancedChatSystem && currentDocumentData) {
+                        data = await enhancedChatSystem.processQuestion(question, currentDocumentData);
+                    } else if (chatLearningSystem) {
+                        // Fallback to legacy system
                         const improvedResponse = chatLearningSystem.generateImprovedResponse(question, questionType);
-                        answer = improvedResponse;
+                        data = {
+                            answerMarkdown: improvedResponse,
+                            timestamp: new Date().toISOString(),
+                            documentType: currentDocumentData?.documentType,
+                            confidence: 0.8
+                        };
                     } else {
-                        // Fallback to basic responses
-                        answer = generateBasicMockResponse(question, currentDocumentData);
+                        // Final fallback
+                        data = {
+                            answerMarkdown: generateBasicMockResponse(question, currentDocumentData),
+                            timestamp: new Date().toISOString(),
+                            documentType: currentDocumentData?.documentType,
+                            confidence: 0.7
+                        };
                     }
-                    
-                    data = {
-                        answerMarkdown: answer,
-                        timestamp: new Date().toISOString(),
-                        documentType: currentDocumentData?.documentType,
-                        confidence: 0.8
-                    };
                 } else {
                     const response = await fetch(`${AZURE_FUNCTION_URL}/api/qa`, {
                         method: 'POST',
@@ -877,31 +920,45 @@
         }
 
         // Record user feedback
-        function recordFeedback(feedback, button) {
+        function recordFeedback(feedback, button, question = '', response = '') {
+            // Record in enhanced chat system
+            if (enhancedChatSystem) {
+                enhancedChatSystem.recordFeedback(feedback, question, response);
+            }
+            
+            // Record in legacy system
             if (chatLearningSystem) {
                 chatLearningSystem.recordUserFeedback(feedback);
-                
-                // Visual feedback
-                button.style.background = feedback === 'helpful' ? '#28a745' : '#dc3545';
-                button.style.color = 'white';
-                button.textContent = feedback === 'helpful' ? '✓ Thank you!' : '✓ Noted';
-                button.disabled = true;
-                
-                console.log(`👍 Recorded feedback: ${feedback}`);
             }
+            
+            // Visual feedback
+            button.style.background = feedback === 'helpful' ? '#28a745' : '#dc3545';
+            button.style.color = 'white';
+            button.textContent = feedback === 'helpful' ? '✓ Thank you!' : '✓ Noted';
+            button.disabled = true;
+            
+            console.log(`👍 Recorded feedback: ${feedback}`);
         }
 
         // Update learning dashboard
         function updateLearningDashboard() {
-            if (window.selfLearningSystem) {
-                const stats = window.selfLearningSystem.getLearningStats();
-                document.getElementById('totalInteractions').textContent = stats.totalInteractions;
-                document.getElementById('accuracy').textContent = Math.round(stats.accuracy * 100) + '%';
-                document.getElementById('knowledgeBase').textContent = stats.knowledgeBaseSize;
-                document.getElementById('feedbackCount').textContent = stats.positiveFeedback + stats.negativeFeedback;
+            let stats = null;
+            
+            // Try enhanced chat system first
+            if (enhancedChatSystem) {
+                stats = enhancedChatSystem.getLearningStats();
+            } else if (window.selfLearningSystem) {
+                stats = window.selfLearningSystem.getLearningStats();
+            }
+            
+            if (stats) {
+                document.getElementById('totalInteractions').textContent = stats.totalConversations || stats.totalInteractions || 0;
+                document.getElementById('accuracy').textContent = Math.round((stats.accuracy || 0) * 100) + '%';
+                document.getElementById('knowledgeBase').textContent = stats.documentTypes?.length || stats.knowledgeBaseSize || 0;
+                document.getElementById('feedbackCount').textContent = stats.totalFeedback || (stats.positiveFeedback + stats.negativeFeedback) || 0;
                 
                 // Show dashboard if there's activity
-                if (stats.totalInteractions > 0) {
+                if ((stats.totalConversations || stats.totalInteractions || 0) > 0) {
                     document.getElementById('learningDashboard').style.display = 'block';
                 }
             }
