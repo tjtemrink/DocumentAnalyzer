@@ -11,9 +11,23 @@ class AIDocumentAnalyzer {
         this.learningHistory = [];
         this.confidenceThreshold = 0.7;
         this.documentDatabase = null;
+        this.realDocumentIntelligence = null;
         
         // Initialize with comprehensive document database
         this.initializeDocumentDatabase();
+        this.initializeRealDocumentIntelligence();
+    }
+
+    /**
+     * Initialize real document intelligence system
+     */
+    initializeRealDocumentIntelligence() {
+        if (window.RealDocumentIntelligence) {
+            this.realDocumentIntelligence = new window.RealDocumentIntelligence();
+            console.log('🔧 Real Document Intelligence initialized');
+        } else {
+            console.warn('⚠️ Real Document Intelligence not available');
+        }
     }
 
     /**
@@ -179,40 +193,65 @@ class AIDocumentAnalyzer {
                 console.log('📚 Document database initialized');
             }
             
-            // Extract text content (simulated - in real implementation, use OCR)
-            const documentText = await this.extractTextFromFile(file);
+            let documentText, classification, completeness, validity;
             
-            let classification, completeness, validity;
-            
-            // Use document database for enhanced analysis if available
-            if (this.documentDatabase) {
-                const dbAnalysis = this.documentDatabase.analyzeDocument(documentText, filename);
-                if (dbAnalysis.length > 0) {
-                    const bestMatch = dbAnalysis[0];
-                    classification = {
-                        documentType: bestMatch.documentType,
-                        confidence: bestMatch.confidence,
-                        description: this.generateDescriptionFromDatabase(bestMatch.documentType)
-                    };
-                    
-                    // Extract fields using database patterns
-                    const extractedFields = this.extractFieldsWithDatabase(documentText, bestMatch.documentType);
-                    
-                    // Validate using database rules
-                    const validation = this.documentDatabase.validateDocument(bestMatch.documentType, extractedFields);
-                    completeness = this.analyzeCompletenessWithDatabase(extractedFields, bestMatch.documentType, validation);
-                    validity = this.analyzeValidityWithDatabase(extractedFields, bestMatch.documentType, validation);
+            // Use real document intelligence if available
+            if (this.realDocumentIntelligence) {
+                console.log('🔍 Using Real Document Intelligence for analysis...');
+                
+                // Extract real text from document
+                documentText = await this.realDocumentIntelligence.extractRealTextFromDocument(file);
+                
+                // Classify document type
+                classification = this.classifyDocument(documentText, filename);
+                
+                // Analyze real fields with true/false status
+                const fieldAnalysis = await this.realDocumentIntelligence.analyzeDocumentFields(documentText, classification.documentType);
+                
+                // Convert field analysis to completeness format
+                completeness = this.convertFieldAnalysisToCompleteness(fieldAnalysis);
+                
+                // Convert field analysis to validity format
+                validity = this.convertFieldAnalysisToValidity(fieldAnalysis);
+                
+                console.log('✅ Real Document Intelligence analysis complete');
+                console.log('📊 Field Status:', Object.fromEntries(fieldAnalysis.fieldStatus));
+                
+            } else {
+                // Fallback to original analysis
+                console.log('⚠️ Using fallback analysis (no real document intelligence)');
+                documentText = await this.extractTextFromFile(file);
+                
+                // Use document database for enhanced analysis if available
+                if (this.documentDatabase) {
+                    const dbAnalysis = this.documentDatabase.analyzeDocument(documentText, filename);
+                    if (dbAnalysis.length > 0) {
+                        const bestMatch = dbAnalysis[0];
+                        classification = {
+                            documentType: bestMatch.documentType,
+                            confidence: bestMatch.confidence,
+                            description: this.generateDescriptionFromDatabase(bestMatch.documentType)
+                        };
+                        
+                        // Extract fields using database patterns
+                        const extractedFields = this.extractFieldsWithDatabase(documentText, bestMatch.documentType);
+                        
+                        // Validate using database rules
+                        const validation = this.documentDatabase.validateDocument(bestMatch.documentType, extractedFields);
+                        completeness = this.analyzeCompletenessWithDatabase(extractedFields, bestMatch.documentType, validation);
+                        validity = this.analyzeValidityWithDatabase(extractedFields, bestMatch.documentType, validation);
+                    } else {
+                        // Fallback to original analysis
+                        classification = this.classifyDocument(documentText, filename);
+                        completeness = this.analyzeFieldCompleteness(documentText, classification.documentType);
+                        validity = this.analyzeValidity(documentText, classification.documentType);
+                    }
                 } else {
-                    // Fallback to original analysis
+                    // Original analysis method
                     classification = this.classifyDocument(documentText, filename);
                     completeness = this.analyzeFieldCompleteness(documentText, classification.documentType);
                     validity = this.analyzeValidity(documentText, classification.documentType);
                 }
-            } else {
-                // Original analysis method
-                classification = this.classifyDocument(documentText, filename);
-                completeness = this.analyzeFieldCompleteness(documentText, classification.documentType);
-                validity = this.analyzeValidity(documentText, classification.documentType);
             }
             
             // Learn from this analysis
@@ -845,6 +884,101 @@ class AIDocumentAnalyzer {
         
         // Fallback to original analysis
         return this.analyzeValidity(JSON.stringify(extractedFields), documentType);
+    }
+
+    /**
+     * Convert field analysis to completeness format
+     */
+    convertFieldAnalysisToCompleteness(fieldAnalysis) {
+        const presentRequired = [];
+        const missingRequired = [];
+        
+        for (const [fieldName, fieldData] of fieldAnalysis.fields) {
+            if (fieldData.isFilled) {
+                presentRequired.push(fieldName);
+            } else {
+                missingRequired.push(fieldName);
+            }
+        }
+        
+        const totalFields = presentRequired.length + missingRequired.length;
+        const score = totalFields > 0 ? (presentRequired.length / totalFields) * 100 : 100;
+        
+        let status = 'Complete';
+        if (score < 70) status = 'Incomplete';
+        else if (score < 90) status = 'Partially Complete';
+        
+        return {
+            completeness: {
+                score: Math.round(score),
+                status: status,
+                presentRequired: presentRequired,
+                missingRequired: missingRequired
+            }
+        };
+    }
+
+    /**
+     * Convert field analysis to validity format
+     */
+    convertFieldAnalysisToValidity(fieldAnalysis) {
+        const issues = [];
+        const warnings = [];
+        
+        // Check for critical missing fields
+        for (const [fieldName, fieldData] of fieldAnalysis.fields) {
+            if (!fieldData.isFilled) {
+                if (this.isCriticalField(fieldName)) {
+                    issues.push(`Critical field missing: ${fieldName}`);
+                } else {
+                    warnings.push(`Optional field missing: ${fieldName}`);
+                }
+            }
+        }
+        
+        let status = 'Valid';
+        if (issues.length > 0) status = 'Invalid';
+        else if (warnings.length > 0) status = 'Potentially Valid (Review Warnings)';
+        
+        const score = Math.max(0, 100 - (issues.length * 20) - (warnings.length * 5));
+        
+        return {
+            status: status,
+            score: score,
+            issues: issues,
+            warnings: warnings
+        };
+    }
+
+    /**
+     * Check if field is critical for document validity
+     */
+    isCriticalField(fieldName) {
+        const criticalFields = [
+            'buyerName', 'sellerName', 'propertyAddress', 'purchasePrice', 'closingDate',
+            'tenantName', 'landlordName', 'rentAmount', 'leaseStartDate', 'leaseEndDate'
+        ];
+        return criticalFields.includes(fieldName);
+    }
+
+    /**
+     * Get field statistics from real document intelligence
+     */
+    getFieldStatistics() {
+        if (this.realDocumentIntelligence) {
+            return this.realDocumentIntelligence.getFieldStatistics();
+        }
+        return null;
+    }
+
+    /**
+     * Update field status in real document intelligence
+     */
+    async updateFieldStatus(documentId, fieldName, isFilled) {
+        if (this.realDocumentIntelligence) {
+            return await this.realDocumentIntelligence.updateFieldStatus(documentId, fieldName, isFilled);
+        }
+        return false;
     }
 }
 

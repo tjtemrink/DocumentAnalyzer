@@ -378,38 +378,42 @@
                     For important legal decisions, consult with a qualified attorney.
                 </div>
                 
-                <!-- Learning Dashboard -->
-                <div id="learningDashboard" style="display: none; margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #007bff;">
-                    <h4 style="margin-top: 0; color: #007bff;">🤖 AI Learning Progress</h4>
-                    <div id="learningStats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-top: 10px;">
-                        <div class="stat-item">
-                            <div class="stat-value" id="totalInteractions">0</div>
-                            <div class="stat-label">Total Interactions</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value" id="accuracy">0%</div>
-                            <div class="stat-label">Accuracy</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value" id="knowledgeBase">0</div>
-                            <div class="stat-label">Knowledge Items</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value" id="feedbackCount">0</div>
-                            <div class="stat-label">Feedback Received</div>
-                        </div>
-                    </div>
-                    <div style="margin-top: 10px; font-size: 12px; color: #666;">
-                        <span class="learning-icon">🧠</span>
-                        <span>I'm continuously learning from your interactions to provide better responses!</span>
-                    </div>
+        <!-- Learning Dashboard -->
+        <div id="learningDashboard" style="display: none; margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #007bff;">
+            <h4 style="margin-top: 0; color: #007bff;">🤖 AI Learning Progress</h4>
+            <div id="learningStats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-top: 10px;">
+                <div class="stat-item">
+                    <div class="stat-value" id="totalInteractions">0</div>
+                    <div class="stat-label">Total Interactions</div>
                 </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="accuracy">0%</div>
+                    <div class="stat-label">Accuracy</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="knowledgeBase">0</div>
+                    <div class="stat-label">Knowledge Items</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="feedbackCount">0</div>
+                    <div class="stat-label">Feedback Received</div>
+                </div>
+            </div>
+            <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                <span class="learning-icon">🧠</span>
+                <span>I'm continuously learning from your interactions to provide better responses!</span>
+            </div>
+        </div>
+
+        <!-- Field Status Dashboard -->
+        <div id="fieldStatusDashboard"></div>
             </div>
         </div>
     </div>
 
     <!-- Self-Learning ML System -->
     <script src="document-database.js"></script>
+    <script src="real-document-intelligence.js"></script>
     <script src="ai-document-analyzer.js"></script>
     <script src="ai-training-system.js"></script>
     <script src="training-dashboard.js"></script>
@@ -418,6 +422,7 @@
     <script src="ml-learning-system.js"></script>
     <script src="ml-plugins.js"></script>
     <script src="feedback-system.js"></script>
+    <script src="field-status-dashboard.js"></script>
     
     <script>
         // Azure Functions URL
@@ -475,6 +480,14 @@
         if (window.ChatLearningSystem) {
             chatLearningSystem = new window.ChatLearningSystem();
             console.log('💬 Chat Learning System initialized - will learn from all conversations');
+        }
+        
+        // Initialize field status dashboard
+        let fieldStatusDashboard;
+        if (window.FieldStatusDashboard) {
+            fieldStatusDashboard = new window.FieldStatusDashboard();
+            fieldStatusDashboard.initialize('fieldStatusDashboard');
+            console.log('📊 Field Status Dashboard initialized');
         }
 
         // Event listeners
@@ -644,8 +657,18 @@
                 uploadButton.textContent = 'AI Analysis Complete!';
                 uploadButton.style.background = 'linear-gradient(135deg, #27ae60 0%, #2ecc71 100%)';
                 
-                // Update learning dashboard
-                updateLearningDashboard();
+               // Update learning dashboard
+               updateLearningDashboard();
+               
+               // Update field status dashboard
+               if (fieldStatusDashboard && aiAnalyzer && aiAnalyzer.realDocumentIntelligence) {
+                   // Get the stored field analysis from the real document intelligence
+                   const allAnalyses = await aiAnalyzer.realDocumentIntelligence.getAllFieldAnalyses();
+                   if (allAnalyses.length > 0) {
+                       const latestAnalysis = allAnalyses[allAnalyses.length - 1];
+                       fieldStatusDashboard.updateFieldAnalysis(latestAnalysis);
+                   }
+               }
                 
             } catch (error) {
                 console.error('Upload error:', error);
